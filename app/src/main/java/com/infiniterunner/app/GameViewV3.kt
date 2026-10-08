@@ -7,7 +7,7 @@ import android.view.*
 import kotlin.math.*
 import kotlin.random.Random
 
-class GameView(context: Context) : View(context) {
+class GameViewV3(context: Context) : View(context) {
     private val p=Paint(3)
     private val pref=context.getSharedPreferences("game",0)
     private var coins=pref.getInt("coins",0)
