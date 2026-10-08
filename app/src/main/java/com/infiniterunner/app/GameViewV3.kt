@@ -98,8 +98,17 @@ class GameViewV3(context: Context) : View(context) {
     }
 
     private fun startMusic(){
-        val rate=22050;val notes=intArrayOf(196,247,294,330,392,330,294,247,220,277,330,370);val n=rate/3;val data=ShortArray(notes.size*n);var k=0
-        for(f in notes)for(i in 0 until n)data[k++]=(sin(2*PI*f*i/rate)*2600*(1.0-i.toDouble()/n)).toInt().toShort()
+        // Softer background melody: slower notes and lower volume so it is less distracting.
+        val rate=22050
+        val notes=intArrayOf(220,262,330,294,247,196,247,294,330,262,220,196)
+        val n=rate/2
+        val data=ShortArray(notes.size*n)
+        var k=0
+        for(f in notes) for(i in 0 until n){
+            val fade=1.0-i.toDouble()/n
+            val wave=sin(2*PI*f*i/rate)
+            data[k++]=(wave*1200*fade).toInt().toShort()
+        }
         music=AudioTrack.Builder().setAudioAttributes(AudioAttributes.Builder().setUsage(AudioAttributes.USAGE_GAME).setContentType(AudioAttributes.CONTENT_TYPE_MUSIC).build()).setAudioFormat(AudioFormat.Builder().setEncoding(AudioFormat.ENCODING_PCM_16BIT).setSampleRate(rate).setChannelMask(AudioFormat.CHANNEL_OUT_MONO).build()).setBufferSizeInBytes(data.size*2).setTransferMode(AudioTrack.MODE_STATIC).build()
         music?.write(data,0,data.size);music?.setLoopPoints(0,data.size,-1);music?.play()
     }
