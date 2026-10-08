@@ -61,7 +61,7 @@ class GameView(context: Context) : View(context) {
     private fun drawBackground(c:Canvas,phase:Int){
         p.color=when(phase){0->Color.rgb(48,115,60);1->Color.rgb(185,188,194);2->Color.rgb(32,142,190);else->Color.rgb(48,55,74)}
         c.drawRect(0f,ground-180f,width.toFloat(),ground.toFloat(),p)
-        for(x in 0..width step 120){p.color=when(phase){0->Color.rgb(25,105,48);1->Color.rgb(90,125,155);2->Color.WHITE;else->Color.rgb(255,218,110)};c.drawCircle(x.toFloat(),ground-120f,phase==2?.let{5f}?:35f,p)}
+        for(x in 0..width step 120){p.color=when(phase){0->Color.rgb(25,105,48);1->Color.rgb(90,125,155);2->Color.WHITE;else->Color.rgb(255,218,110)};c.drawCircle(x.toFloat(),ground-120f,if(phase==2) 5f else 35f,p)}
     }
 
     private fun drawCharacter(c:Canvas,x:Float,yy:Float){
