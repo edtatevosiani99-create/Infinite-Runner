@@ -4,62 +4,141 @@ import android.content.Context
 import android.graphics.*
 import android.view.MotionEvent
 import android.view.View
-import kotlin.math.max
 import kotlin.random.Random
 
 class GameView(context: Context) : View(context) {
-    private val p = Paint(Paint.ANTI_ALIAS_FLAG)
+    private val paint = Paint(Paint.ANTI_ALIAS_FLAG)
+    private val prefs = context.getSharedPreferences("game", 0)
     private var playerY = 0f
-    private var velocity = 0f
-    private var speed = 9f
+    private var velocityY = 0f
+    private var speed = 420f
     private var score = 0
-    private var high = context.getSharedPreferences("game",0).getInt("high",0)
-    private var over = false
-    private var last = System.currentTimeMillis()
+    private var scoreFloat = 0f
+    private var highScore = prefs.getInt("high", 0)
+    private var gameOver = false
+    private var lastTime = System.nanoTime()
+    private var spawnTimer = 0.7f
     private val obstacles = mutableListOf<RectF>()
 
-    init { p.typeface = Typeface.DEFAULT_BOLD; setBackgroundColor(Color.rgb(12,16,24)); post { playerY = height-180f; spawn() ; invalidate() } }
-
-    private fun spawn() {
-        val h = 45f + Random.nextInt(55)
-        val w = 35f + Random.nextInt(35)
-        val x = width + 40f
-        obstacles += RectF(x, height-90f-h, x+w, height-90f)
+    init {
+        paint.typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
+        post { resetGame() }
     }
 
-    override fun onDraw(c: Canvas) {
-        super.onDraw(c)
-        val now=System.currentTimeMillis(); val dt=max(0.001f,(now-last)/1000f); last=now
-        if (!over) update(dt)
-        drawWorld(c)
+    private val playerHeight get() = 72f
+    private val playerWidth get() = 62f
+    private val groundHeight get() = 96f
+    private fun groundY() = height.toFloat() - groundHeight
+
+    private fun resetGame() {
+        score = 0
+        scoreFloat = 0f
+        speed = 420f
+        velocityY = 0f
+        gameOver = false
+        obstacles.clear()
+        spawnTimer = 0.7f
+        playerY = groundY() - playerHeight
+        lastTime = System.nanoTime()
+        invalidate()
+    }
+
+    private fun spawnObstacle() {
+        if (width <= 0 || height <= 0) return
+        val h = Random.nextInt(55, 115).toFloat()
+        val w = Random.nextInt(38, 68).toFloat()
+        val x = width.toFloat() + 40f
+        obstacles += RectF(x, groundY() - h, x + w, groundY())
+    }
+
+    override fun onDraw(canvas: Canvas) {
+        super.onDraw(canvas)
+        val now = System.nanoTime()
+        val dt = ((now - lastTime) / 1_000_000_000f).coerceIn(0f, 0.033f)
+        lastTime = now
+        if (!gameOver) update(dt)
+        drawWorld(canvas)
         postInvalidateOnAnimation()
     }
 
-    private fun update(dt:Float) {
-        speed += dt*0.12f
-        score += (dt*10).toInt()
-        velocity += 1800f*dt; playerY += velocity*dt
-        val ground=height-90f-70f
-        if(playerY>ground){playerY=ground;velocity=0f}
-        obstacles.forEach{it.offset(-speed*60f*dt,0f)}
-        if(obstacles.isEmpty() || obstacles.last().left < width-300) spawn()
-        obstacles.removeAll{it.right<0}
-        val player=RectF(70f,playerY,135f,playerY+70f)
-        if(obstacles.any{RectF.intersects(player,it)}) gameOver()
+    private fun update(dt: Float) {
+        scoreFloat += dt * 10f
+        score = scoreFloat.toInt()
+        speed = (420f + score * 2.2f).coerceAtMost(900f)
+
+        velocityY += 1900f * dt
+        playerY += velocityY * dt
+        val floor = groundY() - playerHeight
+        if (playerY >= floor) {
+            playerY = floor
+            velocityY = 0f
+        }
+
+        spawnTimer -= dt
+        if (spawnTimer <= 0f) {
+            spawnObstacle()
+            spawnTimer = Random.nextDouble(0.9, 1.55).toFloat()
+        }
+
+        val dx = speed * dt
+        obstacles.forEach { it.offset(-dx, 0f) }
+        obstacles.removeAll { it.right < -20f }
+
+        val player = RectF(77f, playerY + 6f, 125f, playerY + playerHeight - 4f)
+        if (obstacles.any { RectF.intersects(player, it) }) endGame()
     }
 
-    private fun drawWorld(c:Canvas) {
-        p.color=Color.rgb(22,28,40); c.drawRect(0f,height-90f,width.toFloat(),height.toFloat(),p)
-        p.color=Color.WHITE; c.drawRect(0f,height-92f,width.toFloat(),height-88f,p)
-        p.color=Color.rgb(70,190,255); c.drawRoundRect(70f,playerY,135f,playerY+70f,18f,18f,p)
-        p.color=Color.rgb(255,90,90); obstacles.forEach{c.drawRoundRect(it,10f,10f,p)}
-        p.textSize=42f; p.color=Color.WHITE; c.drawText("SCORE  $score",30f,55f,p)
-        p.textSize=26f; c.drawText("BEST  $high",30f,90f,p)
-        if(over){p.textSize=64f;c.drawText("GAME OVER",width/2f-190f,height/2f-20f,p);p.textSize=30f;c.drawText("TAP TO RESTART",width/2f-125f,height/2f+35f,p)}
+    private fun drawWorld(canvas: Canvas) {
+        canvas.drawColor(Color.rgb(10, 15, 25))
+        paint.color = Color.rgb(20, 28, 42)
+        canvas.drawRect(0f, groundY(), width.toFloat(), height.toFloat(), paint)
+        paint.color = Color.rgb(90, 210, 255)
+        canvas.drawRect(0f, groundY() - 5f, width.toFloat(), groundY(), paint)
+
+        paint.color = Color.rgb(70, 190, 255)
+        canvas.drawRoundRect(70f, playerY, 70f + playerWidth, playerY + playerHeight, 18f, 18f, paint)
+        paint.color = Color.WHITE
+        canvas.drawCircle(113f, playerY + 22f, 5f, paint)
+
+        paint.color = Color.rgb(255, 82, 92)
+        obstacles.forEach { canvas.drawRoundRect(it, 10f, 10f, paint) }
+
+        paint.textAlign = Paint.Align.LEFT
+        paint.textSize = 34f
+        paint.color = Color.WHITE
+        canvas.drawText("SCORE  $score", 28f, 48f, paint)
+        paint.textSize = 24f
+        canvas.drawText("BEST  $highScore", 28f, 80f, paint)
+
+        if (gameOver) {
+            paint.textAlign = Paint.Align.CENTER
+            paint.textSize = 54f
+            canvas.drawText("GAME OVER", width / 2f, height / 2f - 20f, paint)
+            paint.textSize = 28f
+            canvas.drawText("TAP TO RESTART", width / 2f, height / 2f + 32f, paint)
+            paint.textAlign = Paint.Align.LEFT
+        }
     }
 
-    private fun jump(){ if(over){restart();return}; val ground=height-90f-70f;if(playerY>=ground-2) velocity=-650f }
-    private fun gameOver(){ over=true; if(score>high){high=score;context.getSharedPreferences("game",0).edit().putInt("high",high).apply()} }
-    private fun restart(){score=0;speed=9f;velocity=0f;obstacles.clear();playerY=height-160f;over=false;spawn()}
-    override fun onTouchEvent(e:MotionEvent):Boolean { if(e.action==MotionEvent.ACTION_DOWN) jump(); return true }
+    private fun jump() {
+        if (gameOver) {
+            resetGame()
+            return
+        }
+        val floor = groundY() - playerHeight
+        if (playerY >= floor - 4f) velocityY = -760f
+    }
+
+    private fun endGame() {
+        gameOver = true
+        if (score > highScore) {
+            highScore = score
+            prefs.edit().putInt("high", highScore).apply()
+        }
+    }
+
+    override fun onTouchEvent(event: MotionEvent): Boolean {
+        if (event.action == MotionEvent.ACTION_DOWN) jump()
+        return true
+    }
 }
