@@ -13,7 +13,7 @@ class GameViewV3(context: Context) : View(context) {
     private var coins=pref.getInt("coins",0)
     private var char=pref.getInt("char",0)
     private var unlocked=pref.getStringSet("unlocked",setOf("0"))!!.toMutableSet()
-    private var over=false; private var shop=false; private var t=0f; private var last=System.nanoTime()
+    private var over=false; private var shop=true; private var started=false; private var t=0f; private var last=System.nanoTime()
     private var y=0f; private var vy=0f; private var score=0f; private var best=pref.getInt("best",0)
     private var speed=420f; private var obstacleTime=.7f; private var coinTime=2.2f
     private val obs=mutableListOf<RectF>(); private val cs=mutableListOf<RectF>()
@@ -23,7 +23,7 @@ class GameViewV3(context: Context) : View(context) {
     private val ph get()=102f
     private val ground get()=height-104f
 
-    private fun reset(){over=false;shop=false;t=0f;score=0f;speed=420f;obstacleTime=.7f;coinTime=2.2f;obs.clear();cs.clear();y=ground-ph;last=System.nanoTime()}
+    private fun reset(){over=false;shop=false;started=true;t=0f;score=0f;speed=420f;obstacleTime=.7f;coinTime=2.2f;obs.clear();cs.clear();y=ground-ph;last=System.nanoTime()}
 
     override fun onDraw(c:Canvas){
         val now=System.nanoTime(); val dt=((now-last)/1e9f).coerceIn(0f,.033f); last=now
@@ -69,6 +69,7 @@ class GameViewV3(context: Context) : View(context) {
         when(char){
             0->{p.color=Color.DKGRAY;c.drawCircle(x,yy+20,19f,p);p.color=Color.rgb(40,115,210);c.drawRoundRect(x-22,yy+35,x+22,yy+78,10f,10f,p);p.color=Color.DKGRAY;c.drawRect(x-16,yy+74,x-6,yy+102+r,p);c.drawRect(x+6,yy+74,x+16,yy+102-r,p)}
             1->{p.color=Color.rgb(25,25,30);c.drawCircle(x,yy+20,22f,p);p.color=Color.rgb(190,35,45);c.drawRoundRect(x-25,yy+34,x+25,yy+80,10f,10f,p);p.color=Color.DKGRAY;c.drawRect(x-17,yy+76,x-5,yy+104+r,p);c.drawRect(x+5,yy+76,x+17,yy+104-r,p)}
+            3->{p.color=Color.rgb(70,190,190);c.drawCircle(x,yy+20,23f,p);p.color=Color.rgb(25,45,55);c.drawRoundRect(x-25,yy+36,x+25,yy+82,10f,10f,p);p.color=Color.YELLOW;c.drawRect(x-17,yy+76,x-5,yy+104+r,p);c.drawRect(x+5,yy+76,x+17,yy+104-r,p);p.color=Color.WHITE;c.drawCircle(x-8,yy+20,4f,p);c.drawCircle(x+8,yy+20,4f,p)}
             else->{p.color=Color.LTGRAY;c.drawRoundRect(x-23,yy+4,x+23,yy+49,8f,8f,p);p.color=Color.DKGRAY;c.drawRect(x-26,yy+49,x+26,yy+82,p);p.color=Color.CYAN;c.drawCircle(x-8,yy+24,4f,p);c.drawCircle(x+8,yy+24,4f,p);p.color=Color.DKGRAY;c.drawRect(x-17,yy+80,x-6,yy+104+r,p);c.drawRect(x+6,yy+80,x+17,yy+104-r,p)}
         }
     }
@@ -79,9 +80,9 @@ class GameViewV3(context: Context) : View(context) {
     private fun drawShop(c:Canvas){
         p.color=Color.argb(240,10,15,25);c.drawRect(0f,0f,width.toFloat(),height.toFloat(),p);p.textAlign=Paint.Align.CENTER
         text(c,"CHARACTER SHOP",width/2f,58f,38f,Color.WHITE);text(c,"COINS: ${coins}",width/2f,95f,24f,Color.WHITE)
-        val xs=floatArrayOf(width*.25f,width*.5f,width*.75f);val names=arrayOf("RUNNER","NINJA","ROBOT");val cost=intArrayOf(0,50,120)
-        for(i in 0..2){drawCharacter(c,xs[i],160f,i);val label=if(char==i)"SELECTED"else if(unlocked.contains(i.toString()))"SELECT"else"BUY ${cost[i]}";text(c,names[i],xs[i],280f,22f,Color.WHITE);text(c,label,xs[i],320f,19f,Color.WHITE)}
-        text(c,"TAP BELOW TO CLOSE",width/2f,height-25f,19f,Color.WHITE);p.textAlign=Paint.Align.LEFT
+        val xs=floatArrayOf(width*.14f,width*.38f,width*.62f,width*.86f);val names=arrayOf("RUNNER","NINJA","ROBOT","CYBORG");val cost=intArrayOf(0,50,120,250)
+        for(i in 0..3){drawCharacter(c,xs[i],160f,i);val label=if(char==i)"SELECTED"else if(unlocked.contains(i.toString()))"SELECT"else"BUY ${cost[i]}";text(c,names[i],xs[i],280f,22f,Color.WHITE);text(c,label,xs[i],320f,19f,Color.WHITE)}
+        text(c,"TAP A CHARACTER TO SELECT • TAP START TO PLAY",width/2f,height-55f,19f,Color.WHITE);p.color=Color.rgb(40,180,90);c.drawRoundRect(width/2f-120,height-48f,width/2f+120,height-8f,12f,12f,p);text(c,"START GAME",width/2f,height-20f,20f,Color.WHITE);p.textAlign=Paint.Align.LEFT
     }
 
     private fun drawCharacter(c:Canvas,x:Float,yy:Float,type:Int){val old=char;char=type;drawCharacter(c,x,yy);char=old}
@@ -91,12 +92,12 @@ class GameViewV3(context: Context) : View(context) {
 
     override fun onTouchEvent(e:MotionEvent):Boolean{
         if(e.action!=MotionEvent.ACTION_DOWN)return true
-        if(shop){if(e.y>height*.72f){shop=false;return true};val i=when{e.x<width/3f->0;e.x<width*2/3f->1;else->2};val cost=intArrayOf(0,50,120)[i];if(unlocked.contains(i.toString())){char=i;pref.edit().putInt("char",char).apply()}else if(coins>=cost){coins-=cost;unlocked.add(i.toString());char=i;pref.edit().putInt("coins",coins).putInt("char",char).putStringSet("unlocked",unlocked).apply()};return true}
+        if(shop){if(e.y>height-70){reset();return true};val i=when{e.x<width*.25f->0;e.x<width*.5f->1;e.x<width*.75f->2;else->3};val cost=intArrayOf(0,50,120,250)[i];if(unlocked.contains(i.toString())){char=i;pref.edit().putInt("char",char).apply()}else if(coins>=cost){coins-=cost;unlocked.add(i.toString());char=i;pref.edit().putInt("coins",coins).putInt("char",char).putStringSet("unlocked",unlocked).apply()};return true}
         if(e.x>width-230&&e.y<130){shop=true;return true};if(over)reset()else if(y>=ground-ph-5)vy=-820f;return true
     }
 
     private fun startMusic(){
-        val rate=22050;val notes=intArrayOf(262,330,392,330,294,349,440,349);val n=rate/3;val data=ShortArray(notes.size*n);var k=0
+        val rate=22050;val notes=intArrayOf(196,247,294,330,392,330,294,247,220,277,330,370);val n=rate/3;val data=ShortArray(notes.size*n);var k=0
         for(f in notes)for(i in 0 until n)data[k++]=(sin(2*PI*f*i/rate)*2600*(1.0-i.toDouble()/n)).toInt().toShort()
         music=AudioTrack.Builder().setAudioAttributes(AudioAttributes.Builder().setUsage(AudioAttributes.USAGE_GAME).setContentType(AudioAttributes.CONTENT_TYPE_MUSIC).build()).setAudioFormat(AudioFormat.Builder().setEncoding(AudioFormat.ENCODING_PCM_16BIT).setSampleRate(rate).setChannelMask(AudioFormat.CHANNEL_OUT_MONO).build()).setBufferSizeInBytes(data.size*2).setTransferMode(AudioTrack.MODE_STATIC).build()
         music?.write(data,0,data.size);music?.setLoopPoints(0,data.size,-1);music?.play()
