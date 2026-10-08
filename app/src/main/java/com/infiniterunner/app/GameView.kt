@@ -145,8 +145,10 @@ class GameView(context: Context) : View(context) {
         canvas.drawRect(0f, groundY(), width.toFloat(), height.toFloat(), paint)
         paint.color = Color.rgb(225, 225, 225)
         val offset = (worldTime * speed) % 100f
-        for (x in -100f..width.toFloat() step 100f) {
+        var x = -100f
+        while (x <= width.toFloat()) {
             canvas.drawRect(x - offset, groundY() + 42f, x + 48f - offset, groundY() + 48f, paint)
+            x += 100f
         }
     }
 
@@ -154,7 +156,7 @@ class GameView(context: Context) : View(context) {
         paint.color = Color.rgb(48, 115, 60)
         canvas.drawRect(0f, groundY() - 180f, width.toFloat(), groundY(), paint)
         for (x in -40..width step 100) {
-            val sway = sin(worldTime * 1.5 + x) * 5f
+            val sway = sin(worldTime * 1.5f + x.toFloat()) * 5f
             paint.color = Color.rgb(92, 62, 40)
             canvas.drawRect(x + sway, groundY() - 125f, x + 22f + sway, groundY(), paint)
             paint.color = Color.rgb(25, 105, 48)
@@ -181,7 +183,7 @@ class GameView(context: Context) : View(context) {
         canvas.drawRect(0f, groundY() - 155f, width.toFloat(), groundY(), paint)
         paint.color = Color.WHITE
         for (x in -40..width step 90) {
-            val y = groundY() - 120f + sin(worldTime * 2f + x) * 8f
+            val y = groundY() - 120f + sin(worldTime * 2f + x.toFloat()) * 8f
             canvas.drawRoundRect(x.toFloat(), y, x + 55f, y + 5f, 5f, 5f, paint)
         }
         paint.color = Color.rgb(235, 205, 105)
