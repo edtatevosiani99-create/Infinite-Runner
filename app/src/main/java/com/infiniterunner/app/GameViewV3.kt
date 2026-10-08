@@ -16,14 +16,15 @@ class GameViewV3(context: Context) : View(context) {
     private var over=false; private var shop=true; private var started=false; private var t=0f; private var last=System.nanoTime()
     private var y=0f; private var vy=0f; private var score=0f; private var best=pref.getInt("best",0)
     private var speed=420f; private var obstacleTime=.7f; private var coinTime=2.2f
-    private val obs=mutableListOf<RectF>(); private val cs=mutableListOf<RectF>()
+    private val obs=mutableListOf<RectF>();
+    private val obstacleTypes=mutableListOf<Int>(); private val cs=mutableListOf<RectF>()
     private var music:AudioTrack?=null
 
     init { p.typeface=Typeface.DEFAULT_BOLD; startMusic(); post{reset()} }
     private val ph get()=102f
     private val ground get()=height-104f
 
-    private fun reset(){over=false;shop=false;started=true;t=0f;score=0f;speed=420f;obstacleTime=.7f;coinTime=2.2f;obs.clear();cs.clear();y=ground-ph;last=System.nanoTime()}
+    private fun reset(){over=false;shop=false;started=true;t=0f;score=0f;speed=420f;obstacleTime=.7f;coinTime=2.2f;obs.clear();obstacleTypes.clear();cs.clear();y=ground-ph;last=System.nanoTime()}
 
     override fun onDraw(c:Canvas){
         val now=System.nanoTime(); val dt=((now-last)/1e9f).coerceIn(0f,.033f); last=now
@@ -36,14 +37,14 @@ class GameViewV3(context: Context) : View(context) {
         obstacleTime-=dt; if(obstacleTime<=0){spawnObstacle();obstacleTime=Random.nextDouble(.9,1.55).toFloat()}
         coinTime-=dt; if(coinTime<=0){spawnCoin();coinTime=Random.nextDouble(1.8,4.2).toFloat()}
         val dx=speed*dt;obs.forEach{it.offset(-dx,0f)};cs.forEach{it.offset(-dx,0f)}
-        obs.removeAll{it.right<0};cs.removeAll{it.right<0}
+        val gone=obs.indices.filter{obs[it].right<0}.reversed();gone.forEach{obs.removeAt(it);obstacleTypes.removeAt(it)};cs.removeAll{it.right<0}
         val player=RectF(70f,y+10,145f,y+ph-3)
         if(obs.any{RectF.intersects(player,it)}) end()
         val got=cs.filter{RectF.intersects(player,it)}
         if(got.isNotEmpty()){coins+=got.size;cs.removeAll(got.toSet());pref.edit().putInt("coins",coins).apply()}
     }
 
-    private fun spawnObstacle(){val w=Random.nextInt(58,105).toFloat();val h=Random.nextInt(65,105).toFloat();obs+=RectF(width+30f,ground-h,width+30f+w,ground)}
+    private fun spawnObstacle(){val type=Random.nextInt(3);val w=when(type){0->Random.nextInt(45,70);1->Random.nextInt(75,115);else->Random.nextInt(50,85)}.toFloat();val h=when(type){0->Random.nextInt(55,85);1->Random.nextInt(70,110);else->Random.nextInt(95,135)}.toFloat();obs+=RectF(width+30f,ground-h,width+30f+w,ground);obstacleTypes+=type}
     private fun spawnCoin(){val yy=ground-ph-Random.nextInt(0,130);cs+=RectF(width+30f,yy,width+78f,yy+48)}
 
     private fun render(c:Canvas){
@@ -75,12 +76,12 @@ class GameViewV3(context: Context) : View(context) {
     }
 
     private fun drawCoin(c:Canvas,r:RectF){p.color=Color.rgb(255,210,45);c.drawCircle(r.centerX(),r.centerY(),24f,p);p.color=Color.rgb(150,95,20);p.textAlign=Paint.Align.CENTER;p.textSize=24f;c.drawText("C",r.centerX(),r.centerY()+8,p);p.textAlign=Paint.Align.LEFT}
-    private fun drawObstacle(c:Canvas,r:RectF){p.color=Color.rgb(185,35,45);c.drawRoundRect(r,10f,10f,p);p.color=Color.WHITE;c.drawRect(r.left+10,r.top+12,r.right-10,r.top+24,p)}
+    private fun drawObstacle(c:Canvas,r:RectF){val type=obstacleTypes.getOrNull(obs.indexOf(r))?:0;when(type){0->{p.color=Color.rgb(185,35,45);c.drawRoundRect(r,12f,12f,p);p.color=Color.WHITE;c.drawCircle(r.centerX(),r.top+18,7f,p)};1->{p.color=Color.rgb(70,70,78);c.drawRect(r,p);p.color=Color.rgb(130,130,140);c.drawRect(r.left+12,r.top+10,r.right-12,r.top+18,p);c.drawRect(r.left+12,r.top+32,r.right-12,r.top+40,p)};else->{p.color=Color.rgb(35,150,70);c.drawRoundRect(r,20f,20f,p);p.color=Color.rgb(90,210,100);c.drawCircle(r.centerX(),r.top+18,10f,p)}}}
 
     private fun drawShop(c:Canvas){
         p.color=Color.argb(240,10,15,25);c.drawRect(0f,0f,width.toFloat(),height.toFloat(),p);p.textAlign=Paint.Align.CENTER
         text(c,"CHARACTER SHOP",width/2f,58f,38f,Color.WHITE);text(c,"COINS: ${coins}",width/2f,95f,24f,Color.WHITE)
-        val xs=floatArrayOf(width*.14f,width*.38f,width*.62f,width*.86f);val names=arrayOf("RUNNER","NINJA","ROBOT","CYBORG");val cost=intArrayOf(0,50,120,250)
+        val xs=floatArrayOf(width*.14f,width*.38f,width*.62f,width*.86f);val names=arrayOf("RUNNER","NINJA","ROBOT","CYBORG");val cost=intArrayOf(0,5,10,15)
         for(i in 0..3){drawCharacter(c,xs[i],160f,i);val label=if(char==i)"SELECTED"else if(unlocked.contains(i.toString()))"SELECT"else"BUY ${cost[i]}";text(c,names[i],xs[i],280f,22f,Color.WHITE);text(c,label,xs[i],320f,19f,Color.WHITE)}
         text(c,"TAP A CHARACTER TO SELECT • TAP START TO PLAY",width/2f,height-55f,19f,Color.WHITE);p.color=Color.rgb(40,180,90);c.drawRoundRect(width/2f-120,height-48f,width/2f+120,height-8f,12f,12f,p);text(c,"START GAME",width/2f,height-20f,20f,Color.WHITE);p.textAlign=Paint.Align.LEFT
     }
@@ -92,7 +93,7 @@ class GameViewV3(context: Context) : View(context) {
 
     override fun onTouchEvent(e:MotionEvent):Boolean{
         if(e.action!=MotionEvent.ACTION_DOWN)return true
-        if(shop){if(e.y>height-70){reset();return true};val i=when{e.x<width*.25f->0;e.x<width*.5f->1;e.x<width*.75f->2;else->3};val cost=intArrayOf(0,50,120,250)[i];if(unlocked.contains(i.toString())){char=i;pref.edit().putInt("char",char).apply()}else if(coins>=cost){coins-=cost;unlocked.add(i.toString());char=i;pref.edit().putInt("coins",coins).putInt("char",char).putStringSet("unlocked",unlocked).apply()};return true}
+        if(shop){if(e.y>height-70){reset();return true};val i=when{e.x<width*.25f->0;e.x<width*.5f->1;e.x<width*.75f->2;else->3};val cost=intArrayOf(0,5,10,15)[i];if(unlocked.contains(i.toString())){char=i;pref.edit().putInt("char",char).apply()}else if(coins>=cost){coins-=cost;unlocked.add(i.toString());char=i;pref.edit().putInt("coins",coins).putInt("char",char).putStringSet("unlocked",unlocked).apply()};return true}
         if(e.x>width-230&&e.y<130){shop=true;return true};if(over)reset()else if(y>=ground-ph-5)vy=-820f;return true
     }
 
