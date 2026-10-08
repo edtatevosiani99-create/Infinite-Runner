@@ -27,7 +27,7 @@ class GameViewV3(context: Context) : View(context) {
 
     override fun onDraw(c:Canvas){
         val now=System.nanoTime(); val dt=((now-last)/1e9f).coerceIn(0f,.033f); last=now
-        if(!over&&!shop) update(dt); draw(c); postInvalidateOnAnimation()
+        if(!over&&!shop) update(dt); render(c); postInvalidateOnAnimation()
     }
 
     private fun update(dt:Float){
@@ -46,7 +46,7 @@ class GameViewV3(context: Context) : View(context) {
     private fun spawnObstacle(){val w=Random.nextInt(58,105).toFloat();val h=Random.nextInt(65,105).toFloat();obs+=RectF(width+30f,ground-h,width+30f+w,ground)}
     private fun spawnCoin(){val yy=ground-ph-Random.nextInt(0,130);cs+=RectF(width+30f,yy,width+78f,yy+48)}
 
-    override fun draw(c:Canvas){
+    private fun render(c:Canvas){
         val phase=((t/18)%4).toInt()
         c.drawColor(when(phase){0->Color.rgb(105,190,245);1->Color.rgb(245,174,112);2->Color.rgb(38,88,145);else->Color.rgb(25,48,78)})
         drawBackground(c,phase);p.color=Color.rgb(52,52,56);c.drawRect(0f,ground.toFloat(),width.toFloat(),height.toFloat(),p)
