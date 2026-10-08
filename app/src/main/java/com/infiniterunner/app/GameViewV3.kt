@@ -32,7 +32,7 @@ class GameViewV3(context: Context) : View(context) {
     }
 
     private fun update(dt:Float){
-        t+=dt; score+=dt*10f; speed=(420+score*2.2f).coerceAtMost(900f)
+        t+=dt; score+=dt*10f; speed=(420+score*1.15f).coerceAtMost(780f)
         vy+=1900*dt; y+=vy*dt; if(y>ground-ph){y=ground-ph;vy=0f}
         obstacleTime-=dt; if(obstacleTime<=0){spawnObstacle();obstacleTime=Random.nextDouble(.9,1.55).toFloat()}
         coinTime-=dt; if(coinTime<=0){spawnCoin();coinTime=Random.nextDouble(1.8,4.2).toFloat()}
