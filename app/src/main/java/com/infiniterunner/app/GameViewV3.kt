@@ -13,7 +13,7 @@ class GameViewV3(context: Context) : View(context) {
     private var coins=pref.getInt("coins",0)
     private var char=pref.getInt("char",0)
     private var unlocked=pref.getStringSet("unlocked",setOf("0"))!!.toMutableSet()
-    private var over=false; private var shop=true; private var started=false; private var t=0f; private var last=System.nanoTime()
+    private var over=false; private var shop=true; private var started=false; private var paused=false; private var soundOn=true; private var t=0f; private var last=System.nanoTime()
     private var y=0f; private var vy=0f; private var score=0f; private var best=pref.getInt("best",0)
     private var speed=420f; private var obstacleTime=.7f; private var coinTime=2.2f
     private val obs=mutableListOf<RectF>();
@@ -24,11 +24,11 @@ class GameViewV3(context: Context) : View(context) {
     private val ph get()=102f
     private val ground get()=height-104f
 
-    private fun reset(){over=false;shop=false;started=true;t=0f;score=0f;speed=420f;obstacleTime=.7f;coinTime=2.2f;obs.clear();obstacleTypes.clear();cs.clear();y=ground-ph;last=System.nanoTime()}
+    private fun reset(){over=false;shop=false;started=true;paused=false;t=0f;score=0f;speed=420f;obstacleTime=.7f;coinTime=2.2f;obs.clear();obstacleTypes.clear();cs.clear();y=ground-ph;last=System.nanoTime()}
 
     override fun onDraw(c:Canvas){
         val now=System.nanoTime(); val dt=((now-last)/1e9f).coerceIn(0f,.033f); last=now
-        if(!over&&!shop) update(dt); render(c); postInvalidateOnAnimation()
+        if(!over&&!shop&&!paused) update(dt); render(c); postInvalidateOnAnimation()
     }
 
     private fun update(dt:Float){
@@ -54,9 +54,19 @@ class GameViewV3(context: Context) : View(context) {
         p.color=Color.WHITE;var x=-(t*speed%100);while(x<width){c.drawRect(x,ground+42f,x+48,ground+48,p);x+=100}
         drawCharacter(c,105f,y);cs.forEach{drawCoin(c,it)};obs.forEach{drawObstacle(c,it)}
         text(c,"SCORE ${score.toInt()}",28f,45f,32f,Color.WHITE);text(c,"BEST ${best}",28f,78f,22f,Color.WHITE);text(c,"COINS ${coins}",28f,108f,22f,Color.WHITE)
+        drawControls(c)
+        if(paused){p.textAlign=Paint.Align.CENTER;text(c,"PAUSED",width/2f,height/2f-10,52f,Color.WHITE);text(c,"TAP PAUSE TO CONTINUE",width/2f,height/2f+38,22f,Color.WHITE);p.textAlign=Paint.Align.LEFT}
         p.textAlign=Paint.Align.RIGHT;text(c,"CHARACTERS",width-25f,45f,22f,Color.WHITE);p.textAlign=Paint.Align.LEFT
         if(over){p.textAlign=Paint.Align.CENTER;text(c,"GAME OVER",width/2f,height/2f-20,52f,Color.WHITE);text(c,"TAP TO RESTART",width/2f,height/2f+35,26f,Color.WHITE);p.textAlign=Paint.Align.LEFT}
         if(shop)drawShop(c)
+    }
+
+    private fun drawControls(c:Canvas){
+        p.color=Color.argb(190,0,0,0)
+        c.drawRoundRect(width-250f,18f,width-170f,78f,14f,14f,p)
+        c.drawRoundRect(width-160f,18f,width-80f,78f,14f,14f,p)
+        text(c,if(paused)"▶" else "Ⅱ",width-210f,59f,30f,Color.WHITE)
+        text(c,if(soundOn)"♫" else "×♫",width-145f,59f,24f,Color.WHITE)
     }
 
     private fun drawBackground(c:Canvas,phase:Int){
@@ -94,7 +104,17 @@ class GameViewV3(context: Context) : View(context) {
     override fun onTouchEvent(e:MotionEvent):Boolean{
         if(e.action!=MotionEvent.ACTION_DOWN)return true
         if(shop){if(e.y>height-70){reset();return true};val i=when{e.x<width*.25f->0;e.x<width*.5f->1;e.x<width*.75f->2;else->3};val cost=intArrayOf(0,5,10,15)[i];if(unlocked.contains(i.toString())){char=i;pref.edit().putInt("char",char).apply()}else if(coins>=cost){coins-=cost;unlocked.add(i.toString());char=i;pref.edit().putInt("coins",coins).putInt("char",char).putStringSet("unlocked",unlocked).apply()};return true}
-        if(e.x>width-230&&e.y<130){shop=true;return true};if(over)reset()else if(y>=ground-ph-5)vy=-820f;return true
+        if(e.y<95f&&e.x>width-250f&&e.x<width-170f&&!over){
+            paused=!paused
+            if(paused) music?.pause() else if(soundOn) music?.play()
+            return true
+        }
+        if(e.y<95f&&e.x>width-160f&&e.x<width-80f&&!over){
+            soundOn=!soundOn
+            if(soundOn) music?.play() else music?.pause()
+            return true
+        }
+        if(e.x>width-230&&e.y<130){shop=true;return true};if(over)reset()else if(!paused&&y>=ground-ph-5)vy=-820f;return true
     }
 
     private fun startMusic(){
